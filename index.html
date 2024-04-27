@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Docker Image Pull Online</title>
+    <style>
+        #output {
+            height: 200px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Docker Image Pull</h2>
+
+    <label for="imageName">Image Name:</label>
+    <input type="text" id="imageName" placeholder="e.g., nginx:latest" style="width: 300px;">
+    <button onclick="pullImage()">Pull</button>
+
+    <label for="exportName">Export Name:</label>
+    <input type="text" id="exportName" placeholder="e.g., nginx" style="width: auto;">
+    <button id="downloadBtn" ,onclick="downloadImage()">Download</button>
+
+
+
+    <h3>Output:</h3>
+    <div id="output" style="width: 800px;"></div>
+
+
+
+    <script>
+        const output = document.getElementById('output');
+
+        function pullImage() {
+            const imageName = document.getElementById('imageName').value;
+            if (!imageName) {
+                alert('Please enter a Docker image name.');
+                return;
+            }
+
+            // 创建EventSource以连接到服务器的/pull路径
+            const source = new EventSource(`/pull?image=${encodeURIComponent(imageName)}`);
+
+            source.onmessage = function (event) {
+                const message = event.data;
+                const newLine = document.createElement('p');
+                newLine.textContent = message;
+                output.appendChild(newLine);
+                output.scrollTop = output.scrollHeight; // 自动滚动到底部
+            };
+
+            source.onerror = function () {
+                console.error('Error occurred during the connection.');
+                source.close();
+            };
+        }
+        async function downloadImage() {
+            var imageName = document.getElementById('imageName').value;
+            var exportName = document.getElementById('exportName').value;
+
+            if (!imageName) {
+                alert('Please enter an image name');
+                throw new Error('Missing image name');
+            }
+
+            if (!exportName) {
+                alert('Please enter an export name');
+                throw new Error('Missing export name');
+            }
+
+            // Send GET request to backend for downloading
+            const response = await fetch(
+                `/download?image=${encodeURIComponent(imageName)}&exportName=${encodeURIComponent(exportName)}`
+            );
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            // Process the response to download the file
+            const blob = await response.blob();
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = exportName + '.tar.gz';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        }
+
+
+        document.getElementById('downloadBtn').addEventListener('click', function () {
+            var button = this;
+            var originalText = button.textContent; // 保存按钮原始文本
+            button.textContent = 'Downloading...'; // 修改按钮文本为"Downloading..."
+
+            // 假设downloadImage是处理下载逻辑的函数，这里简化处理逻辑
+            downloadImage().then(function () {
+                button.textContent = originalText; // 恢复按钮原始文本
+            }).catch(function (error) {
+                button.textContent = originalText; // 恢复按钮原始文本
+                alert('Download failed: ' + error); // 弹窗提示错误
+            });
+        });
+    </script>
+
+</body>
+
+</html>
